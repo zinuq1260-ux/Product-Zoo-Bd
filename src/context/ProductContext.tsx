@@ -1,69 +1,122 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product } from './CartContext';
+import { supabase } from '../lib/supabase';
 
 interface ProductContextType {
   products: Product[];
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  updateProduct: (id: string, product: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
+  loading: boolean;
+  error: string | null;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  refreshProducts: () => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
-const defaultProducts: Product[] = [];
-
 export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [products, setProducts] = useState<Product[]>(() => {
-    try {
-      const saved = localStorage.getItem('products');
-      if (!saved) return defaultProducts;
-      const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultProducts;
-    } catch (e) {
-      console.error('Failed to parse products from localStorage', e);
-      return defaultProducts;
-    }
-  });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('products', JSON.stringify(products));
-    } catch (e) {
-      console.error('Failed to save products to localStorage', e);
-      if (e instanceof Error && e.name === 'QuotaExceededError') {
-        console.warn('LocalStorage quota exceeded. Some data might not be saved.');
-      }
-    }
-  }, [products]);
+    fetchProducts();
+  }, []);
 
-  const addProduct = (product: Omit<Product, 'id'>) => {
-    const newProduct = { 
-      ...product, 
-      id: Date.now().toString(),
+  const fetchProducts = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: supabaseError } = await supabase.from('products').select('*');
+      if (supabaseError) {
+        console.error('Error fetching products:', supabaseError);
+        setError(`Failed to load products: ${supabaseError.message}`);
+      } else if (data) {
+        const formattedProducts = data.map(p => ({
+          ...p,
+          productCode: p.product_code,
+          isFeatured: p.is_featured,
+          isTrending: p.is_trending,
+          image_url: p.image_url,
+          additional_images: p.additional_images,
+          delivery_info: p.delivery_info,
+          warranty_info: p.warranty_info,
+          return_policy: p.return_policy
+        }));
+        setProducts(formattedProducts);
+      }
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addProduct = async (product: Omit<Product, 'id'>) => {
+    const dbProduct = {
+      name: product.name,
+      product_code: product.productCode || '',
+      description: product.description,
       price: Number(product.price) || 0,
       discount: Number(product.discount) || 0,
+      category: product.category,
       stock: Number(product.stock) || 0,
-      rating: 0,
-      reviews: 0
+      image_url: product.image_url,
+      additional_images: product.additional_images || [],
+      delivery_info: product.delivery_info || '',
+      warranty_info: product.warranty_info || '',
+      return_policy: product.return_policy || '',
+      is_featured: product.isFeatured || false,
+      is_trending: product.isTrending || false
     };
-    setProducts(prev => [...prev, newProduct as Product]);
+
+    const { data, error: supabaseError } = await supabase.from('products').insert([dbProduct]).select();
+    if (supabaseError) {
+      console.error('Error adding product:', supabaseError);
+      throw supabaseError;
+    } else if (data) {
+      await fetchProducts();
+    }
   };
 
-  const updateProduct = (id: string, updatedFields: Partial<Product>) => {
-    const sanitizedFields = { ...updatedFields };
-    if ('price' in sanitizedFields) sanitizedFields.price = Number(sanitizedFields.price) || 0;
-    if ('discount' in sanitizedFields) sanitizedFields.discount = Number(sanitizedFields.discount) || 0;
-    if ('stock' in sanitizedFields) sanitizedFields.stock = Number(sanitizedFields.stock) || 0;
+  const updateProduct = async (id: string, updatedFields: Partial<Product>) => {
+    const dbFields: any = {};
+    if ('name' in updatedFields) dbFields.name = updatedFields.name;
+    if ('productCode' in updatedFields) dbFields.product_code = updatedFields.productCode;
+    if ('description' in updatedFields) dbFields.description = updatedFields.description;
+    if ('price' in updatedFields) dbFields.price = Number(updatedFields.price) || 0;
+    if ('discount' in updatedFields) dbFields.discount = Number(updatedFields.discount) || 0;
+    if ('category' in updatedFields) dbFields.category = updatedFields.category;
+    if ('stock' in updatedFields) dbFields.stock = Number(updatedFields.stock) || 0;
+    if ('image_url' in updatedFields) dbFields.image_url = updatedFields.image_url;
+    if ('additional_images' in updatedFields) dbFields.additional_images = updatedFields.additional_images;
+    if ('delivery_info' in updatedFields) dbFields.delivery_info = updatedFields.delivery_info;
+    if ('warranty_info' in updatedFields) dbFields.warranty_info = updatedFields.warranty_info;
+    if ('return_policy' in updatedFields) dbFields.return_policy = updatedFields.return_policy;
+    if ('isFeatured' in updatedFields) dbFields.is_featured = updatedFields.isFeatured;
+    if ('isTrending' in updatedFields) dbFields.is_trending = updatedFields.isTrending;
 
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...sanitizedFields } : p));
+    const { error: supabaseError } = await supabase.from('products').update(dbFields).eq('id', id);
+    if (supabaseError) {
+      console.error('Error updating product:', supabaseError);
+      throw supabaseError;
+    } else {
+      await fetchProducts();
+    }
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
+  const deleteProduct = async (id: string) => {
+    const { error: supabaseError } = await supabase.from('products').delete().eq('id', id);
+    if (supabaseError) {
+      console.error('Error deleting product:', supabaseError);
+      throw supabaseError;
+    } else {
+      await fetchProducts();
+    }
   };
 
   return (
-    <ProductContext.Provider value={{ products, addProduct, updateProduct, deleteProduct }}>
+    <ProductContext.Provider value={{ products, loading, error, addProduct, updateProduct, deleteProduct, refreshProducts: fetchProducts }}>
       {children}
     </ProductContext.Provider>
   );

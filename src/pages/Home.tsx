@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Star, TrendingUp, Package, Zap, ChevronRight, Gift, Smartphone, Laptop, Watch, Shirt, Home as HomeIcon } from 'lucide-react';
+import { ShoppingCart, Star, TrendingUp, Package, Zap, ChevronRight, Gift, Smartphone, Laptop, Watch, Shirt, Home as HomeIcon, AlertTriangle } from 'lucide-react';
 import { useCart, Product } from '../context/CartContext';
 import { useProducts } from '../context/ProductContext';
 
@@ -52,11 +52,38 @@ const ProductCard: React.FC<{ product: Product, addToCart: (p: Product) => void 
 
 export const Home: React.FC = () => {
   const { addToCart } = useCart();
-  const { products } = useProducts();
+  const { products, loading, error } = useProducts();
   const [categoryFilter, setCategoryFilter] = useState('All');
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const searchQuery = searchParams.get('search') || '';
+
+  if (loading && products.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#f85606]"></div>
+        <p className="text-gray-500 animate-pulse">Loading products...</p>
+      </div>
+    );
+  }
+
+  if (error && products.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 p-6 text-center">
+        <div className="bg-red-50 p-4 rounded-full text-red-500">
+          <AlertTriangle className="h-12 w-12" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900">Oops! Something went wrong</h2>
+        <p className="text-gray-500 max-w-md">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="bg-[#f85606] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#d44a05] transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
   const featuredProducts = products.filter(p => p.isFeatured);
@@ -65,7 +92,11 @@ export const Home: React.FC = () => {
   
   const filteredProducts = products.filter(p => {
     const matchesCategory = categoryFilter === 'All' || p.category === categoryFilter;
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = 
+      p.name.toLowerCase().includes(searchLower) || 
+      (p.category && p.category.toLowerCase().includes(searchLower)) ||
+      (p.description && p.description.toLowerCase().includes(searchLower));
     return matchesCategory && matchesSearch;
   });
 
@@ -77,6 +108,33 @@ export const Home: React.FC = () => {
     { name: 'Home', icon: HomeIcon, color: 'bg-green-100 text-green-600' },
     { name: 'Offers', icon: Gift, color: 'bg-red-100 text-red-600' },
   ];
+
+  if (searchQuery) {
+    return (
+      <div className="space-y-4 sm:space-y-6 mt-4">
+        <div className="bg-white sm:rounded-xl p-4 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-900">
+            Search Results for "{searchQuery}"
+          </h2>
+          <p className="text-sm text-gray-500">{filteredProducts.length} products found</p>
+        </div>
+
+        {filteredProducts.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 px-2 sm:px-0">
+            {filteredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} addToCart={addToCart} />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl p-12 text-center shadow-sm">
+            <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <h3 className="font-bold text-gray-900">No products found</h3>
+            <p className="text-xs text-gray-500">Try checking your spelling or use more general terms.</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">

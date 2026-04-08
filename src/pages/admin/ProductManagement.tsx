@@ -3,12 +3,13 @@ import { Plus, Edit, Trash2, AlertTriangle, Upload, X } from 'lucide-react';
 import { useProducts } from '../../context/ProductContext';
 
 export const ProductManagement: React.FC = () => {
-  const { products, addProduct, updateProduct, deleteProduct } = useProducts();
+  const { products, loading, error: globalError, addProduct, updateProduct, deleteProduct } = useProducts();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const initialFormState = {
+    productCode: '',
     name: '',
     description: '',
     price: 0,
@@ -26,14 +27,21 @@ export const ProductManagement: React.FC = () => {
 
   const [formData, setFormData] = useState(initialFormState);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleDelete = (id: string) => {
     setDeleteConfirmId(id);
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     if (deleteConfirmId) {
-      deleteProduct(deleteConfirmId);
-      setDeleteConfirmId(null);
+      try {
+        await deleteProduct(deleteConfirmId);
+        setDeleteConfirmId(null);
+      } catch (err: any) {
+        alert(`Failed to delete product: ${err.message}`);
+      }
     }
   };
 
@@ -44,23 +52,34 @@ export const ProductManagement: React.FC = () => {
     });
     setEditingId(product.id);
     setShowAddForm(true);
+    setError(null);
   };
 
   const handleAddNew = () => {
     setFormData(initialFormState);
     setEditingId(null);
     setShowAddForm(true);
+    setError(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingId) {
-      updateProduct(editingId, formData);
-    } else {
-      addProduct(formData);
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      if (editingId) {
+        await updateProduct(editingId, formData);
+      } else {
+        await addProduct(formData);
+      }
+      setShowAddForm(false);
+      setEditingId(null);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while saving the product.');
+    } finally {
+      setIsSubmitting(false);
     }
-    setShowAddForm(false);
-    setEditingId(null);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -138,22 +157,44 @@ export const ProductManagement: React.FC = () => {
 
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-medium text-gray-900">Products</h2>
-        <button
-          onClick={handleAddNew}
-          className="flex items-center bg-slate-900 text-white px-4 py-2 rounded-md hover:bg-slate-800 transition-colors font-medium"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Product
-        </button>
+        <div className="flex gap-2">
+          {loading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-900 mr-2"></div>}
+          <button
+            onClick={handleAddNew}
+            className="flex items-center bg-slate-900 text-white px-4 py-2 rounded-md hover:bg-slate-800 transition-colors font-medium"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Product
+          </button>
+        </div>
       </div>
+
+      {globalError && !showAddForm && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4" />
+          {globalError}
+        </div>
+      )}
 
       {showAddForm && (
         <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             {editingId ? 'Edit Product' : 'Add New Product'}
           </h3>
+          
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md text-sm flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Product Code (SKU)</label>
+              <input required type="text" name="productCode" value={formData.productCode} onChange={handleChange} placeholder="e.g. P1001" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
               <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
             </div>
@@ -171,11 +212,15 @@ export const ProductManagement: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select name="category" value={formData.category} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500">
-                <option value="Electronics">Electronics</option>
-                <option value="Clothing">Clothing</option>
-                <option value="Furniture">Furniture</option>
-              </select>
+              <input 
+                required 
+                type="text" 
+                name="category" 
+                value={formData.category} 
+                onChange={handleChange} 
+                placeholder="e.g., Electronics, Fashion, etc."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" 
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Stock Quantity</label>
@@ -277,9 +322,10 @@ export const ProductManagement: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800 font-medium transition-colors"
+                disabled={isSubmitting}
+                className={`px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800 font-medium transition-colors ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {editingId ? 'Update Product' : 'Save Product'}
+                {isSubmitting ? 'Saving...' : (editingId ? 'Update Product' : 'Save Product')}
               </button>
             </div>
           </form>
@@ -298,6 +344,7 @@ export const ProductManagement: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
@@ -317,6 +364,7 @@ export const ProductManagement: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <img src={product.image_url || 'https://picsum.photos/seed/product/100/100'} alt={product.name || 'Product'} className="h-12 w-12 rounded-md object-cover border border-gray-200" />
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{product.productCode || 'N/A'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name || 'Unknown Product'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category || 'Uncategorized'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">৳{price.toFixed(2)}</td>

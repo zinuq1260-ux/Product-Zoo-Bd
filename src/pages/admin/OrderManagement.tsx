@@ -1,9 +1,9 @@
 import React from 'react';
-import { Eye } from 'lucide-react';
+import { Eye, AlertTriangle, Loader2 } from 'lucide-react';
 import { useOrders, Order } from '../../context/OrderContext';
 
 export const OrderManagement: React.FC = () => {
-  const { orders, updateOrderStatus } = useOrders();
+  const { orders, loading, error, updateOrderStatus } = useOrders();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -16,9 +16,28 @@ export const OrderManagement: React.FC = () => {
     }
   };
 
+  if (loading && orders.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <Loader2 className="h-12 w-12 animate-spin text-slate-900" />
+        <p className="text-gray-500 font-medium">Loading orders...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Order Management</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Order Management</h2>
+        {loading && <Loader2 className="h-5 w-5 animate-spin text-slate-900" />}
+      </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-2xl text-sm flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4" />
+          {error}
+        </div>
+      )}
 
       <div className="bg-white shadow-sm rounded-2xl border border-gray-100 overflow-hidden">
         {orders.length === 0 ? (
@@ -69,13 +88,27 @@ export const OrderManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-bold text-gray-900">৳{order.total.toFixed(2)}</div>
-                      <div className="text-xs text-gray-500">{order.quantity} pices</div>
+                      <div className="text-xs text-gray-500">{order.quantity} items</div>
+                      <div className="mt-1 space-y-1">
+                        {order.items.map((item, idx) => (
+                          <div key={idx} className="text-[10px] text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex justify-between">
+                            <span>{item.name}</span>
+                            <span className="font-bold text-slate-900 ml-2">Code: {item.productCode || 'N/A'}</span>
+                          </div>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <select 
                         className={`text-xs font-bold rounded-xl px-3 py-1.5 border-none focus:ring-2 focus:ring-slate-200 cursor-pointer transition-all ${getStatusColor(order.status)}`}
                         value={order.status}
-                        onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
+                        onChange={async (e) => {
+                          try {
+                            await updateOrderStatus(order.id, e.target.value as Order['status']);
+                          } catch (err: any) {
+                            alert(`Failed to update status: ${err.message}`);
+                          }
+                        }}
                       >
                         <option value="Pending">Pending</option>
                         <option value="Processing">Processing</option>

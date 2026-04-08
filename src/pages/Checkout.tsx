@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useOrders } from '../context/OrderContext';
-import { CheckCircle, CreditCard, Smartphone, X, Loader2 } from 'lucide-react';
+import { CheckCircle, CreditCard, Smartphone, X, Loader2, AlertTriangle } from 'lucide-react';
 
 export const Checkout: React.FC = () => {
-  const { cart, totalPrice, clearCart } = useCart();
+  const { cart, totalPrice, totalItems, clearCart } = useCart();
   const { addOrder } = useOrders();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,7 +19,6 @@ export const Checkout: React.FC = () => {
     district: '',
     thana: '',
     village: '',
-    quantity: 1,
     paymentMethod: 'cod',
     transactionId: '',
   });
@@ -28,22 +27,31 @@ export const Checkout: React.FC = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const processOrder = () => {
-    addOrder({
-      customerName: formData.customerName,
-      mobileNumber: formData.mobileNumber,
-      district: formData.district,
-      thana: formData.thana,
-      village: formData.village,
-      quantity: Number(formData.quantity) || 1,
-      paymentMethod: formData.paymentMethod,
-      transactionId: formData.transactionId,
-      items: cart,
-      total: totalPrice,
-    });
-    setIsSubmitting(false);
-    setIsSuccess(true);
-    clearCart();
+  const [error, setError] = useState<string | null>(null);
+
+  const processOrder = async () => {
+    setError(null);
+    try {
+      await addOrder({
+        customerName: formData.customerName,
+        mobileNumber: formData.mobileNumber,
+        district: formData.district,
+        thana: formData.thana,
+        village: formData.village,
+        quantity: totalItems,
+        paymentMethod: formData.paymentMethod,
+        transactionId: formData.transactionId,
+        items: cart,
+        total: totalPrice,
+      });
+      setIsSubmitting(false);
+      setIsSuccess(true);
+      clearCart();
+    } catch (err: any) {
+      console.error('Failed to place order:', err);
+      setError(err.message || 'অর্ডার দিতে সমস্যা হয়েছে। অনুগ্রহ করে আপনার ইন্টারনেট কানেকশন চেক করুন এবং আবার চেষ্টা করুন।');
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,9 +59,7 @@ export const Checkout: React.FC = () => {
     
     if (formData.paymentMethod === 'cod') {
       setIsSubmitting(true);
-      setTimeout(() => {
-        processOrder();
-      }, 1500);
+      await processOrder();
     } else if (formData.paymentMethod === 'bkash') {
       setShowPaymentGateway(true);
       setPaymentStep('initial');
@@ -64,20 +70,24 @@ export const Checkout: React.FC = () => {
     }
   };
 
-  const handleSimulatePayment = () => {
+  const handleSimulatePayment = async () => {
     if (formData.paymentMethod === 'bkash' && !formData.transactionId) {
       alert('Please enter your Transaction ID');
       return;
     }
 
     setPaymentStep('processing');
-    setTimeout(() => {
-      setPaymentStep('success');
-      setTimeout(() => {
-        setShowPaymentGateway(false);
-        processOrder();
-      }, 1500);
-    }, 2000);
+    
+    // Simulate a brief processing delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    setPaymentStep('success');
+    
+    // Brief delay to show success state before processing order
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    setShowPaymentGateway(false);
+    await processOrder();
   };
 
   if (isSuccess) {
@@ -199,6 +209,18 @@ export const Checkout: React.FC = () => {
 
       <div className="md:col-span-7">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Checkout Details</h2>
+        
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-2xl text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+            <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+            <div>
+              <p className="font-bold">Error Occurred:</p>
+              <p>{error}</p>
+              <p className="mt-1 text-xs opacity-80">টিপস: আপনার Supabase Anon Key এবং টেবিলগুলো ঠিক আছে কি না চেক করুন।</p>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100">
           <div className="space-y-4">
             <div>
@@ -264,18 +286,6 @@ export const Checkout: React.FC = () => {
                   value={formData.mobileNumber}
                   onChange={handleChange}
                   placeholder="01XXXXXXXXX"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">পরিমাণ (Quantity)</label>
-                <input
-                  required
-                  type="number"
-                  name="quantity"
-                  min="1"
-                  value={formData.quantity}
-                  onChange={handleChange}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
                 />
               </div>

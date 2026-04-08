@@ -5,10 +5,14 @@ import { useProducts } from '../../context/ProductContext';
 export const Inventory: React.FC = () => {
   const { products, updateProduct } = useProducts();
 
-  const handleStockUpdate = (id: string, newStock: string) => {
+  const handleStockUpdate = async (id: string, newStock: string) => {
     const stock = Number(newStock);
     if (!isNaN(stock)) {
-      updateProduct(id, { stock });
+      try {
+        await updateProduct(id, { stock });
+      } catch (err: any) {
+        alert(`Failed to update stock: ${err.message}`);
+      }
     }
   };
 

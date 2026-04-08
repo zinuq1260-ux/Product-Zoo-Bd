@@ -1,7 +1,12 @@
 import React from 'react';
-import { Package, Clock, CheckCircle } from 'lucide-react';
+import { Package, Clock, CheckCircle, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Login } from '../components/Login';
+import { auth, signOut } from '../firebase';
 
 export const Profile: React.FC = () => {
+  const { user, loading } = useAuth();
+
   // Mock order history
   const orders = [
     {
@@ -37,18 +42,46 @@ export const Profile: React.FC = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error signing out', error);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center py-10">Loading...</div>;
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-4 sm:px-0 mt-8">
       <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden mb-8">
-        <div className="p-6 sm:p-8 border-b border-gray-200 flex items-center space-x-6">
-          <div className="h-24 w-24 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-3xl font-bold">
-            JD
+        <div className="p-6 sm:p-8 border-b border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center space-x-6">
+            {user.photoURL ? (
+              <img src={user.photoURL} alt="Profile" className="h-24 w-24 rounded-full border-4 border-indigo-50" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="h-24 w-24 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-3xl font-bold">
+                {user.email?.charAt(0).toUpperCase() || 'U'}
+              </div>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{user.displayName || 'User'}</h1>
+              <p className="text-gray-500">{user.email}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">John Doe</h1>
-            <p className="text-gray-500">john.doe@example.com</p>
-            <p className="text-gray-500">+880 1712-345678</p>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
         </div>
       </div>
 

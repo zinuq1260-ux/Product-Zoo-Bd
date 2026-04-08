@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, User, Search, Store, Menu, X, Shield, Home as HomeIcon } from 'lucide-react';
 import { useCart } from '../context/CartContext';
@@ -6,9 +6,16 @@ import { useCart } from '../context/CartContext';
 export const Layout: React.FC = () => {
   const { totalItems } = useCart();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
+  
+  const searchParams = new URLSearchParams(location.search);
+  const initialSearch = searchParams.get('search') || '';
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+
+  useEffect(() => {
+    setSearchQuery(searchParams.get('search') || '');
+  }, [location.search]);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -33,7 +40,7 @@ export const Layout: React.FC = () => {
               <div className="bg-white text-[#f85606] p-1.5 rounded-lg">
                 <Store className="h-5 w-5" />
               </div>
-              <span className="text-lg sm:text-xl font-black tracking-tighter text-white uppercase italic">Product Zoo</span>
+              <span className="text-lg sm:text-xl font-black tracking-tighter text-white uppercase italic">PRODUCT ZOO BD</span>
             </Link>
 
             {/* Search Bar */}
@@ -43,7 +50,7 @@ export const Layout: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-4 pr-12 py-2 rounded-lg bg-white/90 focus:bg-white focus:outline-none text-sm placeholder-gray-400"
-                placeholder="Search in Product Zoo Bd"
+                placeholder="Search in PRODUCT ZOO BD"
               />
               <button type="submit" className="absolute right-0 top-0 h-full px-4 bg-[#eff0f5] rounded-r-lg text-gray-500 hover:text-[#f85606]">
                 <Search className="h-5 w-5" />
@@ -95,7 +102,7 @@ export const Layout: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-4 pr-10 py-2 rounded-lg bg-white/90 text-sm"
-                placeholder="Search in Product Zoo Bd"
+                placeholder="Search in PRODUCT ZOO BD"
               />
               <button type="submit" className="absolute right-3 top-2.5">
                 <Search className="h-4 w-4 text-gray-400" />
@@ -161,6 +168,22 @@ export const Layout: React.FC = () => {
         </Link>
       </nav>
 
+      {/* Floating Cart Button */}
+      <Link
+        to="/cart"
+        className="fixed top-24 left-4 z-50 bg-[#f85606] text-white p-3 rounded-full shadow-2xl hover:scale-110 transition-all md:top-24 md:left-10 flex items-center justify-center"
+        title="View Cart"
+      >
+        <div className="relative">
+          <ShoppingCart className="h-6 w-6" />
+          {totalItems > 0 && (
+            <span className="absolute -top-2 -right-2 bg-white text-[#f85606] text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full border-2 border-[#f85606]">
+              {totalItems}
+            </span>
+          )}
+        </div>
+      </Link>
+
       {/* Floating WhatsApp Button */}
       <a
         href="https://wa.me/8801816600419"
@@ -181,10 +204,10 @@ export const Layout: React.FC = () => {
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
                 <Store className="h-6 w-6 text-[#f85606]" />
-                <span className="text-xl font-bold text-[#f85606]">Product Zoo Bd</span>
+                <span className="text-xl font-bold text-[#f85606]">PRODUCT ZOO BD</span>
               </div>
               <p className="text-gray-500 text-sm max-w-sm">
-                Product Zoo Bd is your one-stop destination for premium products. We ensure quality and authenticity in every item we sell.
+                PRODUCT ZOO BD is your one-stop destination for premium products. We ensure quality and authenticity in every item we sell.
               </p>
             </div>
             <div>
@@ -201,7 +224,7 @@ export const Layout: React.FC = () => {
             </div>
           </div>
           <div className="mt-10 pt-6 border-t text-center text-gray-400 text-xs">
-            © 2026 Product Zoo Bd. All rights reserved.
+            © 2026 PRODUCT ZOO BD. All rights reserved.
           </div>
         </div>
       </footer>
