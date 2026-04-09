@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product } from './CartContext';
 import { supabase } from '../lib/supabase';
+import { db } from '../firebase';
+import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 
 interface ProductContextType {
   products: Product[];
@@ -30,8 +32,14 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       })
       .subscribe();
 
+    // Subscribe to real-time changes for reviews
+    const unsubscribeReviews = onSnapshot(collection(db, 'reviews'), () => {
+      fetchProducts();
+    });
+
     return () => {
       subscription.unsubscribe();
+      unsubscribeReviews();
     };
   }, []);
 
@@ -47,18 +55,40 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       if (supabaseError) throw supabaseError;
       
+      // Fetch reviews from Firestore
+      const reviewsSnapshot = await getDocs(collection(db, 'reviews'));
+      const reviewsByProduct: Record<string, any[]> = {};
+      reviewsSnapshot.forEach(doc => {
+        const review = doc.data();
+        if (!reviewsByProduct[review.productId]) {
+          reviewsByProduct[review.productId] = [];
+        }
+        reviewsByProduct[review.productId].push(review);
+      });
+
       if (data) {
-        const formattedProducts = data.map(p => ({
-          ...p,
-          productCode: p.product_code,
-          isFeatured: p.is_featured,
-          isTrending: p.is_trending,
-          image_url: p.image_url,
-          additional_images: p.additional_images,
-          delivery_info: p.delivery_info,
-          warranty_info: p.warranty_info,
-          return_policy: p.return_policy
-        }));
+        const formattedProducts = data.map(p => {
+          const productReviews = reviewsByProduct[p.id] || [];
+          const reviewsCount = productReviews.length;
+          const averageRating = reviewsCount > 0 
+            ? productReviews.reduce((acc, curr) => acc + curr.rating, 0) / reviewsCount
+            : (Number(p.rating) || 0);
+
+          return {
+            ...p,
+            category: Array.isArray(p.category) ? p.category : (p.category ? [p.category] : []),
+            productCode: p.product_code,
+            isFeatured: p.is_featured,
+            isTrending: p.is_trending,
+            image_url: p.image_url,
+            additional_images: p.additional_images,
+            delivery_info: p.delivery_info,
+            warranty_info: p.warranty_info,
+            return_policy: p.return_policy,
+            rating: averageRating,
+            reviews: reviewsCount > 0 ? reviewsCount : (Number(p.reviews) || 0)
+          };
+        });
         setProducts(formattedProducts);
       }
     } catch (err: any) {
@@ -76,7 +106,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       description: product.description,
       price: Number(product.price) || 0,
       discount: Number(product.discount) || 0,
-      category: product.category,
+      category: Array.isArray(product.category) ? product.category : [product.category],
       stock: Number(product.stock) || 0,
       image_url: product.image_url,
       additional_images: product.additional_images || [],
@@ -103,7 +133,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if ('description' in updatedFields) dbFields.description = updatedFields.description;
     if ('price' in updatedFields) dbFields.price = Number(updatedFields.price) || 0;
     if ('discount' in updatedFields) dbFields.discount = Number(updatedFields.discount) || 0;
-    if ('category' in updatedFields) dbFields.category = updatedFields.category;
+    if ('category' in updatedFields) dbFields.category = Array.isArray(updatedFields.category) ? updatedFields.category : [updatedFields.category];
     if ('stock' in updatedFields) dbFields.stock = Number(updatedFields.stock) || 0;
     if ('image_url' in updatedFields) dbFields.image_url = updatedFields.image_url;
     if ('additional_images' in updatedFields) dbFields.additional_images = updatedFields.additional_images;

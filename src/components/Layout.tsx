@@ -37,10 +37,16 @@ export const Layout: React.FC = () => {
           <div className="flex items-center justify-between h-14 sm:h-16 gap-4">
             {/* Logo */}
             <Link to="/" className="flex-shrink-0 flex items-center gap-2">
-              <div className="bg-white text-[#f85606] p-1.5 rounded-lg">
-                <Store className="h-5 w-5" />
-              </div>
-              <span className="text-lg sm:text-xl font-black tracking-tighter text-white uppercase italic">PRODUCT ZOO BD</span>
+              <img 
+                src="/logo.png" 
+                alt="PRODUCT ZOO BD" 
+                className="h-8 sm:h-10 w-auto object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+              <span className="text-lg sm:text-xl font-black tracking-tighter text-white uppercase italic hidden">PRODUCT ZOO BD</span>
             </Link>
 
             {/* Search Bar */}
@@ -216,8 +222,16 @@ export const Layout: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
-                <Store className="h-6 w-6 text-[#f85606]" />
-                <span className="text-xl font-bold text-[#f85606]">PRODUCT ZOO BD</span>
+                <img 
+                  src="/logo.png" 
+                  alt="PRODUCT ZOO BD" 
+                  className="h-10 w-auto object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+                <span className="text-xl font-bold text-[#f85606] hidden">PRODUCT ZOO BD</span>
               </div>
               <p className="text-gray-500 text-sm max-w-sm">
                 PRODUCT ZOO BD is your one-stop destination for premium products. We ensure quality and authenticity in every item we sell.

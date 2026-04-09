@@ -59,7 +59,10 @@ export const Home: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const searchQuery = searchParams.get('search') || '';
 
-  const categories = React.useMemo(() => ['All', ...Array.from(new Set(products.map(p => p.category)))], [products]);
+  const categories = React.useMemo(() => {
+    const allCats = products.flatMap(p => Array.isArray(p.category) ? p.category : [p.category]);
+    return ['All', ...Array.from(new Set(allCats))].filter(Boolean);
+  }, [products]);
   const featuredProducts = React.useMemo(() => products.filter(p => p.isFeatured).reverse(), [products]);
   const flashSaleProducts = React.useMemo(() => products.filter(p => Number(p.discount) > 10).slice(0, 6), [products]);
   const trendingProducts = React.useMemo(() => products.filter(p => p.isTrending).slice(0, 6), [products]);
@@ -99,25 +102,29 @@ export const Home: React.FC = () => {
   const filteredProducts = React.useMemo(() => {
     return products.filter(p => {
       let matchesCategory = false;
+      const productCategories = Array.isArray(p.category) ? p.category : [p.category];
+
       if (categoryFilter === 'All') {
         matchesCategory = true;
       } else {
-        if (p.category === categoryFilter) {
+        if (productCategories.includes(categoryFilter)) {
           matchesCategory = true;
         } else {
           const keywords = categoryKeywords[categoryFilter] || [categoryFilter.toLowerCase()];
-          const prodCatLower = (p.category || '').toLowerCase();
-          const prodNameLower = (p.name || '').toLowerCase();
-          matchesCategory = keywords.some(kw => 
-            prodCatLower.includes(kw) || prodNameLower.includes(kw)
-          );
+          matchesCategory = productCategories.some(cat => {
+            const prodCatLower = (cat || '').toLowerCase();
+            const prodNameLower = (p.name || '').toLowerCase();
+            return keywords.some(kw => 
+              prodCatLower.includes(kw) || prodNameLower.includes(kw)
+            );
+          });
         }
       }
 
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = 
         p.name.toLowerCase().includes(searchLower) || 
-        (p.category && p.category.toLowerCase().includes(searchLower)) ||
+        productCategories.some(cat => cat && cat.toLowerCase().includes(searchLower)) ||
         (p.description && p.description.toLowerCase().includes(searchLower));
         
       return matchesCategory && matchesSearch;

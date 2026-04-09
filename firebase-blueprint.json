@@ -22,6 +22,33 @@
         }
       },
       "required": ["email", "role"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Product review submitted by a user",
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "rating": {
+          "type": "number"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["productId", "userId", "rating", "createdAt"]
     }
   },
   "firestore": {
@@ -30,6 +57,12 @@
         "$ref": "#/entities/User"
       },
       "description": "Stores user profiles"
+    },
+    "/reviews/{reviewId}": {
+      "schema": {
+        "$ref": "#/entities/Review"
+      },
+      "description": "Stores product reviews"
     }
   }
 }
