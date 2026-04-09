@@ -11,6 +11,11 @@ export const ProductDetails: React.FC = () => {
   const { addToCart } = useCart();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
+  // Scroll to top when product changes
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
   const product = products.find(p => p.id === id);
 
   if (!product) {
@@ -50,6 +55,7 @@ export const ProductDetails: React.FC = () => {
                 alt={product.name || 'Product'} 
                 className="w-full h-full object-cover transition-opacity duration-300"
                 referrerPolicy="no-referrer"
+                loading="lazy"
               />
               {discount > 0 && (
                 <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg">
@@ -74,6 +80,7 @@ export const ProductDetails: React.FC = () => {
                       alt={`${product.name || 'Product'} thumbnail ${idx + 1}`} 
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
+                      loading="lazy"
                     />
                   </button>
                 ))}

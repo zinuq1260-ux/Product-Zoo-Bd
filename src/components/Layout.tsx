@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Search, Store, Menu, X, Shield, Home as HomeIcon } from 'lucide-react';
+import { ShoppingCart, User, Search, Store, Menu, X, Shield, Home as HomeIcon, Package } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 export const Layout: React.FC = () => {
@@ -59,10 +59,14 @@ export const Layout: React.FC = () => {
 
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center space-x-6 text-white text-sm font-medium">
-              <Link to="/admin" className="hover:opacity-80 flex flex-col items-center">
-                <Shield className="h-5 w-5" />
-                <span className="text-[10px] mt-0.5">Admin</span>
+              <Link to="/order-history" className="hover:opacity-80 flex flex-col items-center">
+                <Package className="h-5 w-5" />
+                <span className="text-[10px] mt-0.5">Orders</span>
               </Link>
+              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="hover:opacity-80 flex flex-col items-center">
+                <Menu className="h-5 w-5" />
+                <span className="text-[10px] mt-0.5">Menu</span>
+              </button>
               <Link to="/profile" className="hover:opacity-80 flex flex-col items-center">
                 <User className="h-5 w-5" />
                 <span className="text-[10px] mt-0.5">Account</span>
@@ -114,17 +118,25 @@ export const Layout: React.FC = () => {
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/50 md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-          <div className="bg-white w-64 h-full p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-8 pb-4 border-b">
-              <div className="bg-[#f85606] text-white p-2 rounded-lg">
-                <Store className="h-6 w-6" />
+        <div className="fixed inset-0 z-[60] bg-black/50" onClick={() => setIsMobileMenuOpen(false)}>
+          <div className="bg-white w-64 h-full p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-8 pb-4 border-b">
+              <div className="flex items-center gap-3">
+                <div className="bg-[#f85606] text-white p-2 rounded-lg">
+                  <Store className="h-6 w-6" />
+                </div>
+                <span className="font-bold text-xl">Menu</span>
               </div>
-              <span className="font-bold text-xl">Menu</span>
+              <button onClick={() => setIsMobileMenuOpen(false)}>
+                <X className="h-6 w-6 text-gray-500" />
+              </button>
             </div>
             <nav className="space-y-4">
               <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 text-gray-700 font-medium">
                 <HomeIcon className="h-5 w-5" /> Home
+              </Link>
+              <Link to="/order-history" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 text-gray-700 font-medium">
+                <Package className="h-5 w-5" /> Order History
               </Link>
               <Link to="/profile" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 text-gray-700 font-medium">
                 <User className="h-5 w-5" /> My Account
@@ -147,6 +159,10 @@ export const Layout: React.FC = () => {
           <HomeIcon className="h-6 w-6" />
           <span className="text-[10px] font-bold">Home</span>
         </Link>
+        <Link to="/order-history" className={`flex flex-col items-center gap-1 ${isActive('/order-history') ? 'text-[#f85606]' : 'text-gray-500'}`}>
+          <Package className="h-6 w-6" />
+          <span className="text-[10px] font-bold">Orders</span>
+        </Link>
         <Link to="/profile" className={`flex flex-col items-center gap-1 ${isActive('/profile') ? 'text-[#f85606]' : 'text-gray-500'}`}>
           <User className="h-6 w-6" />
           <span className="text-[10px] font-bold">Account</span>
@@ -162,16 +178,13 @@ export const Layout: React.FC = () => {
           </div>
           <span className="text-[10px] font-bold">Cart</span>
         </Link>
-        <Link to="/admin" className={`flex flex-col items-center gap-1 ${isActive('/admin') ? 'text-[#f85606]' : 'text-gray-500'}`}>
-          <Shield className="h-6 w-6" />
-          <span className="text-[10px] font-bold">Admin</span>
-        </Link>
+
       </nav>
 
       {/* Floating Cart Button */}
       <Link
         to="/cart"
-        className="fixed top-24 left-4 z-50 bg-[#f85606] text-white p-3 rounded-full shadow-2xl hover:scale-110 transition-all md:top-24 md:left-10 flex items-center justify-center"
+        className="fixed bottom-20 left-4 z-50 bg-[#f85606] text-white p-3 rounded-full shadow-2xl hover:scale-110 transition-all md:bottom-10 md:left-10 flex items-center justify-center"
         title="View Cart"
       >
         <div className="relative">

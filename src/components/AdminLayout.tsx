@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingBag, Archive, LogOut, Menu, X, Lock, ShieldCheck, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, Archive, LogOut, Menu, X, Lock, ShieldCheck, ChevronRight, User } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
@@ -19,12 +20,12 @@ export const AdminLayout: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'admin123') {
+    if (username === 'productzoo@bd.com' && password === '@productzoobd2026') {
       setIsAuthenticated(true);
       sessionStorage.setItem('adminAuth', 'true');
       setError('');
     } else {
-      setError('Incorrect password');
+      setError('Incorrect username or password');
     }
   };
 
@@ -78,6 +79,22 @@ export const AdminLayout: React.FC = () => {
               </div>
               
               <form onSubmit={handleLogin} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Username (Email)</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input
+                      type="email"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-900 outline-none"
+                      placeholder="Enter email"
+                      required
+                    />
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Admin Password</label>
                   <div className="relative">

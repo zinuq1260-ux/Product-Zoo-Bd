@@ -21,17 +21,33 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     fetchProducts();
+
+    // Subscribe to real-time changes for products
+    const subscription = supabase
+      .channel('products_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchProducts();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchProducts = async () => {
-    setLoading(true);
+    // Only show loading if we don't have products yet to avoid flickering
+    if (products.length === 0) setLoading(true);
     setError(null);
     try {
-      const { data, error: supabaseError } = await supabase.from('products').select('*');
-      if (supabaseError) {
-        console.error('Error fetching products:', supabaseError);
-        setError(`Failed to load products: ${supabaseError.message}`);
-      } else if (data) {
+      const { data, error: supabaseError } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (supabaseError) throw supabaseError;
+      
+      if (data) {
         const formattedProducts = data.map(p => ({
           ...p,
           productCode: p.product_code,
@@ -46,6 +62,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setProducts(formattedProducts);
       }
     } catch (err: any) {
+      console.error('Error fetching products:', err);
       setError(err.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);

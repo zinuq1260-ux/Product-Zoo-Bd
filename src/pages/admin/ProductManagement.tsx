@@ -212,15 +212,22 @@ export const ProductManagement: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <input 
+              <select 
                 required 
-                type="text" 
                 name="category" 
                 value={formData.category} 
                 onChange={handleChange} 
-                placeholder="e.g., Electronics, Fashion, etc."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" 
-              />
+              >
+                <option value="Electronics">Electronics</option>
+                <option value="Laptops">Laptops</option>
+                <option value="Fashion">Fashion</option>
+                <option value="Watches">Watches</option>
+                <option value="Offers">Offers</option>
+                <option value="Home & Lifestyle">Home & Lifestyle</option>
+                <option value="Accessories">Accessories</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Stock Quantity</label>

@@ -15,7 +15,7 @@ export interface Order {
   items: CartItem[];
   total: number;
   date: string;
-  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Received' | 'Invalid Transaction';
 }
 
 interface OrderContextType {
@@ -24,6 +24,7 @@ interface OrderContextType {
   error: string | null;
   addOrder: (order: Omit<Order, 'id' | 'date' | 'status'>) => Promise<void>;
   updateOrderStatus: (id: string, status: Order['status']) => Promise<void>;
+  updateOrderReply: (id: string, reply: string) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
   refreshOrders: () => Promise<void>;
 }
@@ -37,10 +38,22 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     fetchOrders();
+
+    // Subscribe to real-time changes for orders
+    const subscription = supabase
+      .channel('orders_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchOrders();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchOrders = async () => {
-    setLoading(true);
+    if (orders.length === 0) setLoading(true);
     setError(null);
     try {
       // Fetch orders and their items
@@ -146,6 +159,27 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateOrderReply = async (id: string, reply: string) => {
+    try {
+      // Extract the new TXID from the reply string if it follows the format
+      const newTxid = reply.replace('New Transaction ID: ', '');
+      
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          transaction_id: newTxid,
+          status: 'Pending' // Reset status to Pending when customer replies
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+      await fetchOrders();
+    } catch (err: any) {
+      console.error('Error updating order reply:', err);
+      throw err;
+    }
+  };
+
   const deleteOrder = async (id: string) => {
     try {
       const { error: deleteError } = await supabase
@@ -162,7 +196,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   return (
-    <OrderContext.Provider value={{ orders, loading, error, addOrder, updateOrderStatus, deleteOrder, refreshOrders: fetchOrders }}>
+    <OrderContext.Provider value={{ orders, loading, error, addOrder, updateOrderStatus, updateOrderReply, deleteOrder, refreshOrders: fetchOrders }}>
       {children}
     </OrderContext.Provider>
   );

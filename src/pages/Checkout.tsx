@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useOrders } from '../context/OrderContext';
+import { useAuth } from '../context/AuthContext';
 import { CheckCircle, CreditCard, Smartphone, X, Loader2, AlertTriangle } from 'lucide-react';
 
 export const Checkout: React.FC = () => {
   const { cart, totalPrice, totalItems, clearCart } = useCart();
   const { addOrder } = useOrders();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -14,7 +16,7 @@ export const Checkout: React.FC = () => {
   const [paymentStep, setPaymentStep] = useState<'initial' | 'processing' | 'success'>('initial');
 
   const [formData, setFormData] = useState({
-    customerName: '',
+    customerName: user?.displayName || '',
     mobileNumber: '',
     district: '',
     thana: '',
@@ -22,6 +24,9 @@ export const Checkout: React.FC = () => {
     paymentMethod: 'cod',
     transactionId: '',
   });
+
+  const deliveryCharge = formData.district.toLowerCase().includes('dhaka') ? 60 : 120;
+  const finalTotal = totalPrice + deliveryCharge;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -42,7 +47,7 @@ export const Checkout: React.FC = () => {
         paymentMethod: formData.paymentMethod,
         transactionId: formData.transactionId,
         items: cart,
-        total: totalPrice,
+        total: finalTotal,
       });
       setIsSubmitting(false);
       setIsSuccess(true);
@@ -138,8 +143,8 @@ export const Checkout: React.FC = () => {
             <div className="p-8 flex flex-col items-center text-center">
               {paymentStep === 'initial' && (
                 <>
-                  <div className="text-gray-500 mb-2">Total Amount</div>
-                  <div className="text-4xl font-extrabold text-gray-900 mb-6">৳{totalPrice.toFixed(2)}</div>
+                  <div className="text-gray-500 mb-2">Total Amount (including delivery)</div>
+                  <div className="text-4xl font-extrabold text-gray-900 mb-6">৳{finalTotal.toFixed(2)}</div>
                   
                   <div className="w-full space-y-4">
                     {formData.paymentMethod === 'bkash' ? (
@@ -349,7 +354,7 @@ export const Checkout: React.FC = () => {
               isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-emerald-600'
             }`}
           >
-            {isSubmitting ? 'প্রসেসিং হচ্ছে...' : `অর্ডার কনফার্ম করুন (৳${totalPrice.toFixed(2)})`}
+            {isSubmitting ? 'প্রসেসিং হচ্ছে...' : `অর্ডার কনফার্ম করুন (৳${finalTotal.toFixed(2)})`}
           </button>
         </form>
       </div>
@@ -376,12 +381,12 @@ export const Checkout: React.FC = () => {
               <span>৳{totalPrice.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-gray-600">
-              <span>Shipping</span>
-              <span>Free</span>
+              <span>Shipping ({formData.district.toLowerCase().includes('dhaka') ? 'Inside Dhaka' : 'Outside Dhaka'})</span>
+              <span>৳{deliveryCharge.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-200">
               <span>Total</span>
-              <span>৳{totalPrice.toFixed(2)}</span>
+              <span>৳{finalTotal.toFixed(2)}</span>
             </div>
           </div>
         </div>
