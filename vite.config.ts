@@ -22,16 +22,6 @@ export default defineConfig(({mode}) => {
     },
     build: {
       chunkSizeWarningLimit: 1500,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom', 'react-router-dom'],
-            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-            supabase: ['@supabase/supabase-js'],
-            ui: ['lucide-react']
-          }
-        }
-      }
     },
   };
 });

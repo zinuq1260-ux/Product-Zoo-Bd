@@ -5,10 +5,10 @@
 
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { ProductProvider } from './context/ProductContext';
 import { OrderProvider } from './context/OrderContext';
+import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
 

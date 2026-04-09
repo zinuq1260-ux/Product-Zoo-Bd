@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Star, ArrowLeft, ShieldCheck, Truck, RefreshCw, MessageSquare, User, Share2 } from 'lucide-react';
+import { ShoppingCart, Star, ArrowLeft, ShieldCheck, Truck, RefreshCw, MessageSquare, Share2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useProducts } from '../context/ProductContext';
-import { useCart } from '../context/CartContext';
-import { db, auth } from '../firebase';
-import { collection, addDoc, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
+import { useCart, Product } from '../context/CartContext';
+import { supabase } from '../lib/supabase';
 
 interface Review {
   id: string;
@@ -23,11 +22,9 @@ export const ProductDetails: React.FC = () => {
   const navigate = useNavigate();
   const { products } = useProducts();
   const { addToCart } = useCart();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [reviewsList, setReviewsList] = useState<Review[]>([]);
-  const [newReviewRating, setNewReviewRating] = useState(5);
-  const [newReviewComment, setNewReviewComment] = useState('');
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
   // Scroll to top when product changes
@@ -35,52 +32,54 @@ export const ProductDetails: React.FC = () => {
     window.scrollTo(0, 0);
   }, [id]);
 
+  // Find product in context or fetch directly
   useEffect(() => {
-    if (!id) return;
-    const q = query(collection(db, 'reviews'), where('productId', '==', id));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedReviews: Review[] = [];
-      snapshot.forEach((doc) => {
-        fetchedReviews.push({ id: doc.id, ...doc.data() } as Review);
-      });
-      // Sort by date descending locally since we didn't create a composite index
-      fetchedReviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setReviewsList(fetchedReviews);
-    });
-    return () => unsubscribe();
-  }, [id]);
+    const findProduct = async () => {
+      if (!id) return;
 
-  const handleReviewSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!auth.currentUser) {
-      alert('Please log in to submit a review.');
-      return;
-    }
-    if (!newReviewComment.trim()) {
-      alert('Please write a comment.');
-      return;
-    }
+      const existingProduct = products.find(p => p.id === id);
+      if (existingProduct) {
+        setProduct(existingProduct);
+        setLoading(false);
+        return;
+      }
 
-    setIsSubmittingReview(true);
-    try {
-      await addDoc(collection(db, 'reviews'), {
-        productId: id,
-        userId: auth.currentUser.uid,
-        userName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'Anonymous',
-        rating: newReviewRating,
-        comment: newReviewComment.trim(),
-        createdAt: new Date().toISOString()
-      });
-      setNewReviewComment('');
-      setNewReviewRating(5);
-      alert('Review submitted successfully!');
-    } catch (error) {
-      console.error('Error submitting review:', error);
-      alert('Failed to submit review. Please try again.');
-    } finally {
-      setIsSubmittingReview(false);
-    }
-  };
+      // If not in context, fetch directly from Supabase for speed
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          const formattedProduct = {
+            ...data,
+            category: Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []),
+            productCode: data.product_code,
+            isFeatured: data.is_featured,
+            isTrending: data.is_trending,
+            image_url: data.image_url,
+            additional_images: data.additional_images,
+            delivery_info: data.delivery_info,
+            warranty_info: data.warranty_info,
+            return_policy: data.return_policy,
+            rating: Number(data.rating) || 0,
+            reviews: Number(data.reviews) || 0
+          };
+          setProduct(formattedProduct as Product);
+        }
+      } catch (err) {
+        console.error('Error fetching product directly:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    findProduct();
+  }, [id, products]);
 
   const handleShare = async () => {
     const shareData = {
@@ -106,7 +105,9 @@ export const ProductDetails: React.FC = () => {
     }
   };
 
-  const product = products.find(p => p.id === id);
+  if (loading) {
+    return null;
+  }
 
   if (!product) {
     return (
@@ -124,11 +125,8 @@ export const ProductDetails: React.FC = () => {
   const stock = Number(product.stock) || 0;
   
   // Calculate dynamic rating and reviews
-  const reviewsCount = reviewsList.length;
-  const averageRating = reviewsCount > 0 
-    ? (reviewsList.reduce((acc, curr) => acc + curr.rating, 0) / reviewsCount).toFixed(1)
-    : (Number(product.rating) || 0).toFixed(1);
-  const displayReviewsCount = reviewsCount > 0 ? reviewsCount : (Number(product.reviews) || 0);
+  const averageRating = (Number(product.rating) || 0).toFixed(1);
+  const displayReviewsCount = (Number(product.reviews) || 0);
 
   const discountedPrice = price * (1 - discount / 100);
 
@@ -277,118 +275,7 @@ export const ProductDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* Reviews Section */}
-      <div className="mt-8 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-6 md:p-10">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-          <MessageSquare className="w-6 h-6 text-emerald-500" />
-          Customer Reviews
-        </h2>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Review Form */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-4">Write a Review</h3>
-              {auth.currentUser ? (
-                <form onSubmit={handleReviewSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setNewReviewRating(star)}
-                          className="focus:outline-none"
-                        >
-                          <Star
-                            className={`w-8 h-8 ${
-                              star <= newReviewRating
-                                ? 'text-amber-400 fill-current'
-                                : 'text-gray-300'
-                            } transition-colors`}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Comment</label>
-                    <textarea
-                      value={newReviewComment}
-                      onChange={(e) => setNewReviewComment(e.target.value)}
-                      rows={4}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
-                      placeholder="Share your experience with this product..."
-                      required
-                    ></textarea>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingReview}
-                    className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors disabled:bg-gray-400"
-                  >
-                    {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
-                  </button>
-                </form>
-              ) : (
-                <div className="text-center py-6">
-                  <p className="text-gray-500 mb-4">Please log in to share your review.</p>
-                  <Link to="/profile" className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold hover:bg-slate-800 transition-colors inline-block">
-                    Log In
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Reviews List */}
-          <div className="lg:col-span-2">
-            {reviewsList.length > 0 ? (
-              <div className="space-y-6">
-                {reviewsList.map((review) => (
-                  <div key={review.id} className="border-b border-gray-100 pb-6 last:border-0 last:pb-0">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold">
-                          {review.userName.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{review.userName}</p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(review.createdAt).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-0.5">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`w-4 h-4 ${
-                              star <= review.rating ? 'text-amber-400 fill-current' : 'text-gray-200'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-gray-600 mt-3">{review.comment}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center py-12">
-                <Star className="w-16 h-16 text-gray-200 mb-4" />
-                <h3 className="text-lg font-bold text-gray-900 mb-2">No reviews yet</h3>
-                <p className="text-gray-500">Be the first to review this product!</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Reviews Section - Removed as Firebase is disabled */}
     </div>
   );
 };

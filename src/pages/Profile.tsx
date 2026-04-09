@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
-import { Package, Clock, CheckCircle, LogOut, AlertCircle, AlertTriangle } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Package, Clock, CheckCircle, AlertCircle, AlertTriangle, LogOut } from 'lucide-react';
 import { useOrders } from '../context/OrderContext';
+import { useAuth } from '../context/AuthContext';
 import { Login } from '../components/Login';
-import { auth, signOut } from '../firebase';
 
 export const Profile: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
   const { orders, loading: ordersLoading, updateOrderReply } = useOrders();
+  const { user, logout } = useAuth();
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [newTxid, setNewTxid] = useState('');
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
-  // Filter orders for the current user based on mobile number (if available)
-  const userOrders = orders.filter(order => 
-    order.customerName === user?.displayName || 
-    (user?.email && order.customerName.includes(user.email.split('@')[0]))
-  );
+  if (!user) {
+    return <Login />;
+  }
+
+  // Filter orders for the current user
+  const userOrders = orders.filter(order => order.mobileNumber === user.phoneNumber);
 
   const handleReplySubmit = async (orderId: string) => {
     if (!newTxid.trim()) return;
@@ -65,54 +65,14 @@ export const Profile: React.FC = () => {
     return status;
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error('Error signing out', error);
-    }
-  };
-
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#f85606]"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login />;
-  }
-
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-0 mt-8">
-      <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden mb-8">
-        <div className="p-6 sm:p-8 border-b border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center space-x-6">
-            {user.photoURL ? (
-              <img src={user.photoURL} alt="Profile" className="h-24 w-24 rounded-full border-4 border-indigo-50" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="h-24 w-24 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-3xl font-bold">
-                {user.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{user.displayName || 'User'}</h1>
-              <p className="text-gray-500">{user.email}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </button>
-        </div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold text-gray-900">Order History for {user.name} ({user.phoneNumber})</h2>
+        <button onClick={logout} className="flex items-center gap-2 text-red-600 font-bold hover:text-red-700">
+          <LogOut className="h-5 w-5" /> Logout
+        </button>
       </div>
-
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Order History</h2>
       <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
         {ordersLoading ? (
           <div className="p-12 text-center">

@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useOrders } from '../context/OrderContext';
-import { useAuth } from '../context/AuthContext';
 import { CheckCircle, CreditCard, Smartphone, X, Loader2, AlertTriangle } from 'lucide-react';
 
 export const Checkout: React.FC = () => {
   const { cart, totalPrice, totalItems, clearCart } = useCart();
   const { addOrder } = useOrders();
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -16,7 +14,7 @@ export const Checkout: React.FC = () => {
   const [paymentStep, setPaymentStep] = useState<'initial' | 'processing' | 'success'>('initial');
 
   const [formData, setFormData] = useState({
-    customerName: user?.displayName || '',
+    customerName: '',
     mobileNumber: '',
     district: '',
     thana: '',

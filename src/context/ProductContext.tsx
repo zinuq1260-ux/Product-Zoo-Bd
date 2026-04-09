@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product } from './CartContext';
 import { supabase } from '../lib/supabase';
-import { db } from '../firebase';
-import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 
 interface ProductContextType {
   products: Product[];
@@ -18,62 +16,49 @@ const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Restore initial loading state
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchProducts();
+    // Load from cache first
+    const cachedProducts = localStorage.getItem('products_cache');
+    if (cachedProducts) {
+      try {
+        setProducts(JSON.parse(cachedProducts));
+        setLoading(false); // Hide loading if we have cached data
+      } catch (e) {
+        console.error('Failed to parse cached products', e);
+      }
+    }
+
+    fetchProducts(true); // Always fetch fresh data in background
 
     // Subscribe to real-time changes for products
     const subscription = supabase
       .channel('products_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        fetchProducts();
+        fetchProducts(true);
       })
       .subscribe();
 
-    // Subscribe to real-time changes for reviews
-    const unsubscribeReviews = onSnapshot(collection(db, 'reviews'), () => {
-      fetchProducts();
-    });
-
     return () => {
       subscription.unsubscribe();
-      unsubscribeReviews();
     };
   }, []);
 
-  const fetchProducts = async () => {
-    // Only show loading if we don't have products yet to avoid flickering
-    if (products.length === 0) setLoading(true);
+  const fetchProducts = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     setError(null);
     try {
-      const { data, error: supabaseError } = await supabase
+      const { data: productsData, error: supabaseError } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
       if (supabaseError) throw supabaseError;
-      
-      // Fetch reviews from Firestore
-      const reviewsSnapshot = await getDocs(collection(db, 'reviews'));
-      const reviewsByProduct: Record<string, any[]> = {};
-      reviewsSnapshot.forEach(doc => {
-        const review = doc.data();
-        if (!reviewsByProduct[review.productId]) {
-          reviewsByProduct[review.productId] = [];
-        }
-        reviewsByProduct[review.productId].push(review);
-      });
 
-      if (data) {
-        const formattedProducts = data.map(p => {
-          const productReviews = reviewsByProduct[p.id] || [];
-          const reviewsCount = productReviews.length;
-          const averageRating = reviewsCount > 0 
-            ? productReviews.reduce((acc, curr) => acc + curr.rating, 0) / reviewsCount
-            : (Number(p.rating) || 0);
-
+      if (productsData) {
+        const formattedProducts = productsData.map(p => {
           return {
             ...p,
             category: Array.isArray(p.category) ? p.category : (p.category ? [p.category] : []),
@@ -85,15 +70,22 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
             delivery_info: p.delivery_info,
             warranty_info: p.warranty_info,
             return_policy: p.return_policy,
-            rating: averageRating,
-            reviews: reviewsCount > 0 ? reviewsCount : (Number(p.reviews) || 0)
+            rating: Number(p.rating) || 0,
+            reviews: Number(p.reviews) || 0
           };
         });
         setProducts(formattedProducts);
+        
+        // Update cache
+        try {
+          localStorage.setItem('products_cache', JSON.stringify(formattedProducts));
+        } catch (e) {
+          console.warn('Failed to cache products', e);
+        }
       }
     } catch (err: any) {
       console.error('Error fetching products:', err);
-      setError(err.message || 'An unexpected error occurred.');
+      if (!isBackground) setError(err.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
